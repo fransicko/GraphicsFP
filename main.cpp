@@ -64,8 +64,10 @@ glm::vec3 eyePoint(10.0f, 10.0f, 10.0f);
 glm::vec3 lookAtPoint(0.0f, 0.0f, 0.0f);
 glm::vec3 upVector(0.0f, 1.0f, 0.0f);
 glm::vec3 suzPoint = eyePoint;
+glm::vec3 oldCamAngles;
 bool ml = false;
 bool mr = false;
+bool fpv = false;
 
 CSCI441::ModelLoader *model = NULL;
 glm::mat4 suzModelMtx;
@@ -105,6 +107,16 @@ GLint bbsize = -1;
 Vertex points[1];
 GLuint pointsVAO, pointsVBO;
 
+CSCI441::ShaderProgram *marbleShaderProgram = NULL;
+GLint uniform_modelMtx_loc, uniform_viewMtx_loc, uniform_viewProjetionMtx_loc, uniform_normalMtx_loc, uniform_tex_loc, uniform_color_loc;
+GLint attrib_vPos_loc, attrib_normal_loc, attrib_vTextureCoord_loc;
+GLint uniform_light_pos;
+GLint uniform_light_ambient;
+GLint uniform_light_diffuse;
+GLint uniform_light_specular;
+GLint uniform_light_shine;
+GLint uniform_camera_pos;
+
 GLuint vaodnegy;
 GLuint vaodposy;
 GLuint vaodnegx;
@@ -124,10 +136,6 @@ GLuint poszTextureHandle;
 GLuint platformTextureHandle;
 GLuint particleHandle;
 GLuint brickTexHandle;
-
-CSCI441::ShaderProgram *marbleShaderProgram = NULL;
-GLint uniform_modelMtx_loc, uniform_viewProjetionMtx_loc, uniform_tex_loc, uniform_color_loc;
-GLint attrib_vPos_loc, attrib_vTextureCoord_loc;
 
 vector<ParticleSystem> psystems;
 vector<Spawner> spawners;
@@ -363,6 +371,21 @@ static void key_callback(GLFWwindow *window, int key, int scancode, int action, 
             }
             break;
             */
+        case GLFW_KEY_1:
+            if (fpv)
+            {
+                fpv = false;
+                cameraAngles = oldCamAngles;
+                convertSphericalToCartesian();
+            }
+            break;
+        case GLFW_KEY_2:
+            if (!fpv)
+            {
+                fpv = true;
+                oldCamAngles = cameraAngles;
+            }
+            break;
         case GLFW_KEY_A:
             ml = true;
             break;
@@ -636,11 +659,20 @@ void setupMarbleShaders()
 {
     marbleShaderProgram = new CSCI441::ShaderProgram("shaders/marbleShader.v.glsl", "shaders/marbleShader.f.glsl");
     uniform_modelMtx_loc = marbleShaderProgram->getUniformLocation("modelMtx");
+    uniform_viewMtx_loc = marbleShaderProgram->getUniformLocation("viewMtx");
     uniform_viewProjetionMtx_loc = marbleShaderProgram->getUniformLocation("viewProjectionMtx");
     uniform_tex_loc = marbleShaderProgram->getUniformLocation("tex");
     uniform_color_loc = marbleShaderProgram->getUniformLocation("color");
-    attrib_vPos_loc = marbleShaderProgram->getAttributeLocation("vPos");
+    attrib_vPos_loc = marbleShaderProgram->getAttributeLocation("vPosition");
+    attrib_normal_loc = marbleShaderProgram->getAttributeLocation("normal");
     attrib_vTextureCoord_loc = marbleShaderProgram->getAttributeLocation("vTextureCoord");
+    uniform_normalMtx_loc = marbleShaderProgram->getUniformLocation("normalMtx");
+    uniform_light_pos = marbleShaderProgram->getUniformLocation("lightPosition");
+    uniform_light_ambient = marbleShaderProgram->getUniformLocation("lightAmbient");
+    uniform_light_diffuse = marbleShaderProgram->getUniformLocation("lightDiffuse");
+    uniform_light_specular = marbleShaderProgram->getUniformLocation("lightSpecular");
+    uniform_light_shine = marbleShaderProgram->getUniformLocation("shine");
+    uniform_camera_pos = marbleShaderProgram->getUniformLocation("cameraPosition");
 }
 
 // setupTextures() /////////////////////////////////////////////////////////////
@@ -657,7 +689,7 @@ void setupTextures()
     negzTextureHandle = loadAndRegisterTexture("textures/negz.jpg");
     poszTextureHandle = loadAndRegisterTexture("textures/posz.jpg");
     platformTextureHandle = loadAndRegisterTexture("textures/asphalt.jpg");
-    particleHandle = loadAndRegisterTexture("textures/kappa.png");
+    particleHandle = loadAndRegisterTexture("textures/fire.png");
     brickTexHandle = loadAndRegisterTexture("textures/Stones.jpg");
 }
 
@@ -998,7 +1030,7 @@ void drawSuzanne(glm::mat4 viewMtx, glm::mat4 projMtx)
     glUniformMatrix4fv(objModelMtx, 1, GL_FALSE, &suzModelMtx[0][0]);
     glUniformMatrix4fv(objViewMtx, 1, GL_FALSE, &viewMtx[0][0]);
 
-    glm::mat4 normalMtx = glm::transpose(glm::inverse(suzModelMtx * viewMtx));
+    glm::mat4 normalMtx = glm::transpose(glm::inverse(viewMtx * suzModelMtx));
     glUniformMatrix4fv(objNormMtx, 1, GL_FALSE, &normalMtx[0][0]);
     suzModelMtx = modelMtx;
 
@@ -1208,16 +1240,21 @@ void checkDeaths()
 
 void renderScene(glm::mat4 viewMtx, glm::mat4 projMtx)
 {
+    if (fpv)
+    {
+        cameraAngles = glm::vec3(0.00f, 3.14f, 100.0f);
+        convertSphericalToCartesian();
+    }
     // Updating location of player
     glm::mat4 modelMtx;
     location = location + glm::vec3(0, 0, 0.25f);
     if (ml)
     {
-        location = location + glm::vec3(0.5f, 0, 0);
+        location = location + glm::vec3(0.75f, 0, 0);
     }
     if (mr)
     {
-        location = location - glm::vec3(0.5f, 0, 0);
+        location = location - glm::vec3(0.75f, 0, 0);
     }
 
     glUseProgram(shaderProgramHandle);
@@ -1227,18 +1264,30 @@ void renderScene(glm::mat4 viewMtx, glm::mat4 projMtx)
     drawSuzanne(viewMtx, projMtx);
 
     marbleShaderProgram->useProgram();
+    CSCI441::setVertexAttributeLocations(attrib_vPos_loc, attrib_normal_loc, attrib_vTextureCoord_loc);
     glm::mat4 m, vp = projMtx * viewMtx;
-    glUniformMatrix4fv(uniform_modelMtx_loc, 1, GL_FALSE, &m[0][0]);
+    //glm::mat4 normalMtx = glm::transpose(glm::inverse(m * viewMtx));
+    //glUniformMatrix4fv(uniform_normalMtx_loc, 1, GL_FALSE, &normalMtx[0][0]);
+    //glUniformMatrix4fv(uniform_modelMtx_loc, 1, GL_FALSE, &m[0][0]);
+    glUniformMatrix4fv(uniform_viewMtx_loc, 1, GL_FALSE, &viewMtx[0][0]);
     glUniformMatrix4fv(uniform_viewProjetionMtx_loc, 1, GL_FALSE, &vp[0][0]);
     glUniform1ui(uniform_tex_loc, GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, brickTexHandle);
+
+    glUniform3f(uniform_light_pos, 0.0f, 0.0f, 1000.0f);
+    glUniform3f(uniform_light_ambient, 0.3f, 0.3f, 0.3f);
+    glUniform3f(uniform_light_diffuse, 0.7f, 0.7f, 0.7f);
+    glUniform3f(uniform_light_specular, 1.0f, 1.0f, 1.0f);
+    glUniform1f(uniform_light_shine, 10.0f);
+    glUniform3f(uniform_camera_pos, suzPoint.x, suzPoint.y, suzPoint.z);
+
     glm::vec3 white(1, 1, 1);
     glUniform3fv(uniform_color_loc, 1, &white[0]);
     spawnAndUpdate();
 
     for (unsigned int i = 0; i < spawners.size(); i++)
     {
-        spawners.at(i).draw(m, uniform_modelMtx_loc, uniform_color_loc);
+        spawners.at(i).draw(m, viewMtx, uniform_modelMtx_loc, uniform_color_loc, uniform_normalMtx_loc);
     }
 
     // Following is for particle system

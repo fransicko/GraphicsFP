@@ -11,11 +11,11 @@ bool checkOutOfBounds(Marble *mar)
     return false;
 }
 
-void Spawner::draw(glm::mat4 modelMtx, GLint uniform_modelMtx_loc, GLint uniform_color_loc)
+void Spawner::draw(glm::mat4 modelMtx, glm::mat4 viewMtx, GLint uniform_modelMtx_loc, GLint uniform_color_loc, GLint uniform_normalMtx_loc)
 {
     for (unsigned int i = 0; i < enemies.size(); i++)
     {
-        enemies.at(i)->draw(modelMtx, uniform_modelMtx_loc, uniform_color_loc);
+        enemies.at(i)->draw(modelMtx, viewMtx, uniform_modelMtx_loc, uniform_color_loc, uniform_normalMtx_loc);
     }
 }
 

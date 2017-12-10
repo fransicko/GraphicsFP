@@ -22,7 +22,7 @@ Marble::Marble(glm::vec3 l, glm::vec3 d, double r) : radius(r), location(l), dir
     _color = glm::vec3(rand() % 50 / 50.0 + 0.5, rand() % 50 / 50.0 + 0.5, rand() % 50 / 50.0 + 0.5);
 }
 
-void Marble::draw(glm::mat4 modelMtx, GLint uniform_modelMtx_loc, GLint uniform_color_loc)
+void Marble::draw(glm::mat4 modelMtx, glm::mat4 viewMtx, GLint uniform_modelMtx_loc, GLint uniform_color_loc, GLint uniform_normalMtx_loc)
 {
 
     direction = glm::normalize(direction);
@@ -31,8 +31,11 @@ void Marble::draw(glm::mat4 modelMtx, GLint uniform_modelMtx_loc, GLint uniform_
     modelMtx = glm::translate(modelMtx, location);
     modelMtx = glm::translate(modelMtx, glm::vec3(0, radius, 0));
     modelMtx = glm::rotate(modelMtx, (float)_rotation, rotationAxis);
-    glUniformMatrix4fv(uniform_modelMtx_loc, 1, GL_FALSE, &modelMtx[0][0]);
 
+    glm::mat4 normalMtx = glm::transpose(glm::inverse(viewMtx * modelMtx));
+    glUniformMatrix4fv(uniform_normalMtx_loc, 1, GL_FALSE, &normalMtx[0][0]);
+
+    glUniformMatrix4fv(uniform_modelMtx_loc, 1, GL_FALSE, &modelMtx[0][0]);
     glUniform3fv(uniform_color_loc, 1, &_color[0]);
 
     CSCI441::drawSolidSphere(radius, 16, 16);

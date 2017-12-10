@@ -46,7 +46,7 @@ void main() {
     
 	gl_Position = mvpMatrix * vec4(vPosition, 1);
 	
-	vec4 vPos = modelMtx * viewMtx * vec4(vPosition, 1);
+	vec4 vPos = viewMtx * modelMtx * vec4(vPosition, 1);
 	vec4 lPos = viewMtx * vec4(lightPos, 1);
 	vec4 cPos = viewMtx * vec4(cameraPos, 1);
 	vec4 nPos = normMtx * vec4(normal, 1);

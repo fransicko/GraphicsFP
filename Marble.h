@@ -17,7 +17,7 @@ public:
   glm::vec3 location;
   glm::vec3 direction;
 
-  void draw(glm::mat4 modelMtx, GLint uniform_modelMtx_loc, GLint uniform_color_loc);
+  void draw(glm::mat4 modelMtx, glm::mat4 viewMtx, GLint uniform_modelMtx_loc, GLint uniform_color_loc, GLint uniform_normalMtx_loc);
   void moveForward();
   void moveBackward();
 
