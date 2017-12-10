@@ -1058,13 +1058,11 @@ void spawnAndUpdate()
 
     if (g1 == 3)
     {
-        cout << "g1: " << g1 << endl;
         int i = rand() % 3;
         sp[i] = 0;
     }
     if (g2 == 3)
     {
-        cout << "g2: " << g2 << endl;
         int i = rand() % 3;
         sp[i + 3] = 0;
     }
