@@ -34,6 +34,7 @@
 #include <CSCI441/objects3.hpp>       // to render our 3D primitives
 #include <CSCI441/ShaderProgram3.hpp> // our shader helper functions
 #include <CSCI441/TextureUtils.hpp>   // our texture helper functions
+#include <CSCI441/FramebufferUtils3.hpp>
 
 #include "include/Shader_Utils.h" // our shader helper functions
 
@@ -54,6 +55,15 @@
 // Global Parameters
 
 int windowWidth, windowHeight;
+GLuint fbo;
+GLuint rbo;
+int framebufferWidth = 1024, framebufferHeight = 1024;
+GLuint framebufferTextureHandle;
+GLuint texturedQuadVAO;
+
+CSCI441::ShaderProgram *postprocessingShaderProgram = NULL;
+GLint uniform_post_proj_loc, uniform_post_fbo_loc;
+GLint attrib_post_vpos_loc, attrib_post_vtex_loc;
 
 bool controlDown = false;
 bool leftMouseDown = false;
@@ -570,6 +580,8 @@ void setupOpenGL()
     glEnable(GL_DEPTH_TEST); // enable depth testing
     glDepthFunc(GL_LESS);    // use less than depth test
 
+    glFrontFace( GL_CCW );
+
     glEnable(GL_BLEND);                                // enable blending
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA); // use one minus blending equation
 
@@ -620,6 +632,12 @@ void setupShaders(const char *vertexShaderFilename, const char *fragmentShaderFi
     mvp_uniform_location = glGetUniformLocation(shaderProgramHandle, "mvpMatrix");
     vpos_attrib_location = glGetAttribLocation(shaderProgramHandle, "vPosition");
     tex_attrib_location = glGetAttribLocation(shaderProgramHandle, "tCoord");
+
+    postprocessingShaderProgram = new CSCI441::ShaderProgram("shaders/grayscale.v.glsl", "shaders/grayscale.f.glsl");
+    uniform_post_proj_loc = postprocessingShaderProgram->getUniformLocation("projectionMtx");
+    uniform_post_fbo_loc = postprocessingShaderProgram->getUniformLocation("fbo");
+    attrib_post_vpos_loc = postprocessingShaderProgram->getAttributeLocation("vPos");
+    attrib_post_vtex_loc = postprocessingShaderProgram->getAttributeLocation("vTexCoord");
 }
 
 void setupObjectShaders(const char *vertexShaderFilename, const char *fragmentShaderFilename)
@@ -967,6 +985,62 @@ void setupBuffers(const char *objt)
     glBufferData(GL_ARRAY_BUFFER, sizeof(points), points, GL_STATIC_DRAW);
     glEnableVertexAttribArray(bbvpos);
     glVertexAttribPointer(bbvpos, 3, GL_FLOAT, GL_FALSE, 0, (void *)0);
+
+    // Post processing
+    struct VertexTextured texturedQuadVerts[4] = {
+        {-1.0f, -1.0f, 0.0f, 0.0f, 0.0f}, // 0 - BL
+        {1.0f, -1.0f, 0.0f, 1.0f, 0.0f},  // 1 - BR
+        {-1.0f, 1.0f, 0.0f, 0.0f, 1.0f},  // 2 - TL
+        {1.0f, 1.0f, 0.0f, 1.0f, 1.0f}    // 3 - TR
+    };
+
+    unsigned short texturedQuadIndices[4] = {0, 1, 2, 3};
+    GLuint postvbods[2];
+    glGenVertexArrays(1, &texturedQuadVAO);
+    glBindVertexArray(texturedQuadVAO);
+    glGenBuffers(2, postvbods);
+    glBindBuffer(GL_ARRAY_BUFFER, postvbods[0]);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(texturedQuadVerts), texturedQuadVerts, GL_STATIC_DRAW);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, postvbods[1]);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(texturedQuadIndices), texturedQuadIndices, GL_STATIC_DRAW);
+    postprocessingShaderProgram->useProgram();
+    glEnableVertexAttribArray(attrib_post_vpos_loc);
+    glVertexAttribPointer(attrib_post_vpos_loc, 3, GL_FLOAT, GL_FALSE, sizeof(VertexTextured), (void *)0);
+    glEnableVertexAttribArray(attrib_post_vtex_loc);
+    glVertexAttribPointer(attrib_post_vtex_loc, 2, GL_FLOAT, GL_FALSE, sizeof(VertexTextured), (void *)(sizeof(float) * 3));
+}
+
+void setupFramebuffer()
+{
+    // TODO #1 - Setup everything with the framebuffer
+    glGenFramebuffers(1, &fbo);
+    glBindFramebuffer(GL_FRAMEBUFFER, fbo);
+
+    // Create Framebuffer Object
+    glGenRenderbuffers(1, &rbo);
+    glBindRenderbuffer(GL_RENDERBUFFER, rbo);
+
+    // Attach Renderbuffer Objects
+    glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, framebufferWidth, framebufferHeight);
+
+    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, rbo);
+
+    // Attach Texture Image to FBO
+    glGenTextures(1, &framebufferTextureHandle);
+    glBindTexture(GL_TEXTURE_2D, framebufferTextureHandle);
+
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, framebufferWidth, framebufferHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
+
+    glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+
+    glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, framebufferTextureHandle, 0);
+
+    CSCI441::FramebufferUtils::printFramebufferStatusMessage(GL_FRAMEBUFFER);
+    CSCI441::FramebufferUtils::printFramebufferInfo(GL_FRAMEBUFFER, fbo);
 }
 
 //******************************************************************************
@@ -1327,10 +1401,10 @@ int main(int argc, char *argv[])
     setupShaders("shaders/shader.v.glsl", "shaders/shader.f.glsl"); // load our shader program into memory
     setupObjectShaders("shaders/objectShader.v.glsl", "shaders/objectShader.f.glsl");
     setupBillboardShaders();
-    ;
     setupBuffers("models/suzanne.obj"); // load all our VAOs and VBOs into memory
     setupTextures();
     setupMarbleShaders();
+    setupFramebuffer();
     readFile("systems.csv");
     // needed to connect our 3D Object Library to our shader
     // LOOKHERE #3
@@ -1353,7 +1427,10 @@ int main(int argc, char *argv[])
         glfwGetFramebufferSize(window, &windowWidth, &windowHeight);
 
         // update the viewport - tell OpenGL we want to render to the whole window
-        glViewport(0, 0, windowWidth, windowHeight);
+        glBindFramebuffer(GL_FRAMEBUFFER, fbo);
+
+        glViewport(0, 0, framebufferWidth, framebufferHeight);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
         // set the projection matrix based on the window size
         // use a perspective projection that ranges
@@ -1367,7 +1444,22 @@ int main(int argc, char *argv[])
         // pass our view and projection matrices as well as deltaTime between frames
         renderScene(viewMatrix, projectionMatrix);
 
-        checkEnemiesCollision(); // Checks for enemy running into each other
+        glFlush();
+
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+        glViewport(0, 0, windowWidth, windowHeight);
+        glClear(GL_COLOR_BUFFER_BIT);
+        glClear(GL_DEPTH_BUFFER_BIT);
+
+        glm::mat4 orthoMatrix = glm::ortho(-1, 1, -1, 1);
+        postprocessingShaderProgram->useProgram();
+        glUniformMatrix4fv(uniform_post_proj_loc, 1, GL_FALSE, &orthoMatrix[0][0]);
+
+        glBindTexture(GL_TEXTURE_2D, framebufferTextureHandle);
+        glBindVertexArray(texturedQuadVAO);
+        glDrawElements(GL_TRIANGLE_STRIP, 4, GL_UNSIGNED_SHORT, (void *)0);
+
+        //checkEnemiesCollision(); // Checks for enemy running into each other
         //checkDeaths();           // Checks if player death occurs
 
         glfwSwapBuffers(window); // flush the OpenGL commands and make sure they get rendered!
