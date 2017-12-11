@@ -69,7 +69,7 @@ bool controlDown = false;
 bool leftMouseDown = false;
 glm::vec2 mousePosition(-9999.0f, -9999.0f);
 
-glm::vec3 cameraAngles(0.00f, 2.00f, 14.0f);
+glm::vec3 cameraAngles(0.00f, 1.85f, 42.5f);
 glm::vec3 eyePoint(10.0f, 10.0f, 10.0f);
 glm::vec3 lookAtPoint(0.0f, 0.0f, 0.0f);
 glm::vec3 upVector(0.0f, 1.0f, 0.0f);
@@ -85,6 +85,9 @@ glm::vec3 location = glm::vec3(0.0f, 1.0f, 0.0f);
 float rota = 0.0f;
 glm::vec3 scaleFactor = glm::vec3(1.0f, 1.0f, 1.0f);
 float incrementor = 0.01f;
+
+float orbitRotation = 0.0f;
+glm::vec3 orbitLocation;
 
 GLuint shaderProgramHandle = 0;
 GLint mvp_uniform_location = -1;
@@ -109,6 +112,12 @@ GLint objModelMtx = -1;
 GLint objViewMtx = -1;
 GLint objNormMtx = -1;
 
+GLint LPUloc2 = -1;
+GLint liAmbient2 = -1;
+GLint liDiffuse2 = -1;
+GLint liSpecular2 = -1;
+GLint shine2 = -1;
+
 CSCI441::ShaderProgram *billboardShaderProgram = NULL;
 GLint bbmvp = -1;
 GLint bbproj = -1;
@@ -126,6 +135,11 @@ GLint uniform_light_diffuse;
 GLint uniform_light_specular;
 GLint uniform_light_shine;
 GLint uniform_camera_pos;
+GLint uniform_light_pos2;
+GLint uniform_light_ambient2;
+GLint uniform_light_diffuse2;
+GLint uniform_light_specular2;
+GLint uniform_light_shine2;
 
 GLuint vaodnegy;
 GLuint vaodposy;
@@ -146,6 +160,7 @@ GLuint poszTextureHandle;
 GLuint platformTextureHandle;
 GLuint particleHandle;
 GLuint brickTexHandle;
+GLuint orbitTexHandle;
 
 vector<ParticleSystem> psystems;
 vector<Spawner> spawners;
@@ -580,7 +595,7 @@ void setupOpenGL()
     glEnable(GL_DEPTH_TEST); // enable depth testing
     glDepthFunc(GL_LESS);    // use less than depth test
 
-    glFrontFace( GL_CCW );
+    glFrontFace(GL_CCW);
 
     glEnable(GL_BLEND);                                // enable blending
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA); // use one minus blending equation
@@ -633,7 +648,7 @@ void setupShaders(const char *vertexShaderFilename, const char *fragmentShaderFi
     vpos_attrib_location = glGetAttribLocation(shaderProgramHandle, "vPosition");
     tex_attrib_location = glGetAttribLocation(shaderProgramHandle, "tCoord");
 
-    postprocessingShaderProgram = new CSCI441::ShaderProgram("shaders/grayscale.v.glsl", "shaders/grayscale.f.glsl");
+    postprocessingShaderProgram = new CSCI441::ShaderProgram("shaders/post.v.glsl", "shaders/post.f.glsl");
     uniform_post_proj_loc = postprocessingShaderProgram->getUniformLocation("projectionMtx");
     uniform_post_fbo_loc = postprocessingShaderProgram->getUniformLocation("fbo");
     uniform_post_modelLocation = postprocessingShaderProgram->getUniformLocation("location");
@@ -660,6 +675,12 @@ void setupObjectShaders(const char *vertexShaderFilename, const char *fragmentSh
     objModelMtx = glGetUniformLocation(objectShaderProgram, "modelMtx");
     objViewMtx = glGetUniformLocation(objectShaderProgram, "viewMtx");
     objNormMtx = glGetUniformLocation(objectShaderProgram, "normMtx");
+
+    LPUloc2 = glGetUniformLocation(objectShaderProgram, "lightPos2");
+    liAmbient2 = glGetUniformLocation(objectShaderProgram, "lightambient2");
+    liDiffuse2 = glGetUniformLocation(objectShaderProgram, "lightdiffuse2");
+    liSpecular2 = glGetUniformLocation(objectShaderProgram, "lightspecular2");
+    shine2 = glGetUniformLocation(objectShaderProgram, "shine2");
 }
 
 void setupBillboardShaders()
@@ -691,7 +712,12 @@ void setupMarbleShaders()
     uniform_light_diffuse = marbleShaderProgram->getUniformLocation("lightDiffuse");
     uniform_light_specular = marbleShaderProgram->getUniformLocation("lightSpecular");
     uniform_light_shine = marbleShaderProgram->getUniformLocation("shine");
-    uniform_camera_pos = marbleShaderProgram->getUniformLocation("cameraPosition");
+    uniform_camera_pos = marbleShaderProgram->getUniformLocation("cameraPosition2");
+    uniform_light_pos2 = marbleShaderProgram->getUniformLocation("lightPosition2");
+    uniform_light_ambient2 = marbleShaderProgram->getUniformLocation("lightAmbient2");
+    uniform_light_diffuse2 = marbleShaderProgram->getUniformLocation("lightDiffuse2");
+    uniform_light_specular2 = marbleShaderProgram->getUniformLocation("lightSpecular2");
+    uniform_light_shine2 = marbleShaderProgram->getUniformLocation("shine2");
 }
 
 // setupTextures() /////////////////////////////////////////////////////////////
@@ -710,6 +736,7 @@ void setupTextures()
     platformTextureHandle = loadAndRegisterTexture("textures/asphalt.jpg");
     particleHandle = loadAndRegisterTexture("textures/fire.png");
     brickTexHandle = loadAndRegisterTexture("textures/Stones.jpg");
+    orbitTexHandle = loadAndRegisterTexture("textures/sun.png");
 }
 
 // setupBuffers() //////////////////////////////////////////////////////////////
@@ -1090,6 +1117,7 @@ void drawSkybox()
 
 void drawSuzanne(glm::mat4 viewMtx, glm::mat4 projMtx)
 {
+
     glm::mat4 modelMtx;
     suzModelMtx = glm::translate(suzModelMtx, location);
     suzModelMtx = glm::rotate(suzModelMtx, rota * 3.14f / 180.0f, glm::vec3(0, 1, 0));
@@ -1114,11 +1142,16 @@ void drawSuzanne(glm::mat4 viewMtx, glm::mat4 projMtx)
     glUniform3f(specular, 0.316228f, 0.316228f, 0.316228f);
 
     glUniform3f(LPUloc, 0.0f, 0.0f, 1000.0f);
-
     glUniform3f(liAmbient, 1.0f, 1.0f, 1.0f);
     glUniform3f(liDiffuse, 1.0f, 1.0f, 1.0f);
     glUniform3f(liSpecular, 1.0f, 1.0f, 1.0f);
     glUniform1f(shine, 12.0f);
+
+    glUniform3f(LPUloc2, orbitLocation.x, orbitLocation.y, orbitLocation.z);
+    glUniform3f(liAmbient2, 1.0f, 0.0f, 0.0f);
+    glUniform3f(liDiffuse2, 1.0f, 0.0f, 0.0f);
+    glUniform3f(liSpecular2, 1.0f, 0.0f, 0.0f);
+    glUniform1f(shine2, 20.0f);
 
     glUniform3f(camUniform, suzPoint.x, suzPoint.y, suzPoint.z);
 
@@ -1336,8 +1369,23 @@ void renderScene(glm::mat4 viewMtx, glm::mat4 projMtx)
     glm::mat4 mvpMtx = projMtx * viewMtx * modelMtx;
     glUniformMatrix4fv(mvp_uniform_location, 1, GL_FALSE, &mvpMtx[0][0]);
     drawSkybox();
+    orbitRotation += 1;
+    orbitLocation = glm::vec3(0, 0, location.z) + glm::vec3(15 * sin(orbitRotation * 3.14 / 180.0f), 15, 15 * cos(orbitRotation * 3.14 / 180.0f));
+    glm::mat4 orbitMtx = glm::translate(modelMtx, orbitLocation);
+    mvpMtx = projMtx * viewMtx * orbitMtx;
+    glUniformMatrix4fv(mvp_uniform_location, 1, GL_FALSE, &mvpMtx[0][0]);
+    glBindTexture(GL_TEXTURE_2D, orbitTexHandle);
+    CSCI441::drawSolidSphere(2, 16, 16);
+
+    // Following is for particle system
+    billboardShaderProgram->useProgram();
+
+    drawParticleSystem(viewMtx, projMtx);
+
+    // Following draws Suzanne
     drawSuzanne(viewMtx, projMtx);
 
+    // Following Draws Obstacles
     marbleShaderProgram->useProgram();
     CSCI441::setVertexAttributeLocations(attrib_vPos_loc, attrib_normal_loc, attrib_vTextureCoord_loc);
     glm::mat4 m, vp = projMtx * viewMtx;
@@ -1356,6 +1404,12 @@ void renderScene(glm::mat4 viewMtx, glm::mat4 projMtx)
     glUniform1f(uniform_light_shine, 10.0f);
     glUniform3f(uniform_camera_pos, suzPoint.x, suzPoint.y, suzPoint.z);
 
+    glUniform3f(uniform_light_pos2, 0.0f, 0.0f, 1000.0f);
+    glUniform3f(uniform_light_ambient2, 1.0f, 0.0f, 0.0f);
+    glUniform3f(uniform_light_diffuse2, 1.0f, 0.0f, 0.0f);
+    glUniform3f(uniform_light_specular2, 1.0f, 0.0f, 0.0f);
+    glUniform1f(uniform_light_shine2, 20.0f);
+
     glm::vec3 white(1, 1, 1);
     glUniform3fv(uniform_color_loc, 1, &white[0]);
     spawnAndUpdate();
@@ -1364,11 +1418,6 @@ void renderScene(glm::mat4 viewMtx, glm::mat4 projMtx)
     {
         spawners.at(i).draw(m, viewMtx, uniform_modelMtx_loc, uniform_color_loc, uniform_normalMtx_loc);
     }
-
-    // Following is for particle system
-    billboardShaderProgram->useProgram();
-
-    drawParticleSystem(viewMtx, projMtx);
 }
 
 ///*****************************************************************************

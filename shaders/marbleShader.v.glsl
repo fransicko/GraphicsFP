@@ -14,6 +14,13 @@ uniform vec3 lightDiffuse;
 uniform vec3 lightSpecular;
 uniform float shine;
 
+// Light 2 Properties
+uniform vec3 lightPosition2;
+uniform vec3 lightAmbient2;
+uniform vec3 lightDiffuse2;
+uniform vec3 lightSpecular2;
+uniform float shine2;
+
 uniform vec3 cameraPosition;
 
 uniform vec3 color;
@@ -40,4 +47,13 @@ void main() {
 
 	colorAfter = iDiffuse + iAmbient + iSpecular;
   texCoord = vTextureCoord;
+
+	vec4 lPos2 = viewMtx * vec4(lightPosition2, 1);
+	vec3 lightVector2 = normalize(vec3(lPos2.x, lPos2.y, lPos2.z) - vec3(vPos.x, vPos.y, vPos.z));
+
+	vec3 iDiffuse2 = lightDiffuse2 * color * max(0, dot(lightVector2, normalVector));
+	vec3 iAmbient2 = lightAmbient2 * color;
+	vec3 iSpecular2 = lightSpecular2 * color * pow(max(0, dot(viewVector, normalVector)), shine2);
+
+	colorAfter = colorAfter + iDiffuse2 + iAmbient2 + iSpecular2;
 }

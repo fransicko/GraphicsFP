@@ -29,6 +29,13 @@ uniform vec3 lightdiffuse;
 uniform vec3 lightspecular;
 uniform float shine;
 
+// Light 2 Properties
+uniform vec3 lightPos2;
+uniform vec3 lightambient2;
+uniform vec3 lightdiffuse2;
+uniform vec3 lightspecular2;
+uniform float shine2;
+
 uniform mat4 modelMtx;
 uniform mat4 viewMtx;
 uniform mat4 normMtx;
@@ -60,4 +67,13 @@ void main() {
 	vec3 iSpecular = lightspecular * specular * pow(max(0, dot(viewVector, normalVector)), shine);
 
 	theColor = iDiffuse + iAmbient + iSpecular;
+
+	vec4 lPos2 = viewMtx * vec4(lightPos2, 1);
+	vec3 lightVector2 = normalize(vec3(lPos2.x, lPos2.y, lPos2.z) - vec3(vPos.x, vPos.y, vPos.z));
+
+	vec3 iDiffuse2 = lightdiffuse2 * diffuse * max(0, dot(lightVector2, normalVector));
+	vec3 iAmbient2 = lightambient2 * ambient;
+	vec3 iSpecular2 = lightspecular2 * specular * pow(max(0, dot(viewVector, normalVector)), shine2);
+
+	theColor = theColor + iDiffuse2 + iAmbient2 + iSpecular2;
 }
