@@ -62,7 +62,7 @@ GLuint framebufferTextureHandle;
 GLuint texturedQuadVAO;
 
 CSCI441::ShaderProgram *postprocessingShaderProgram = NULL;
-GLint uniform_post_proj_loc, uniform_post_fbo_loc;
+GLint uniform_post_proj_loc, uniform_post_fbo_loc, uniform_post_modelLocation;
 GLint attrib_post_vpos_loc, attrib_post_vtex_loc;
 
 bool controlDown = false;
@@ -636,6 +636,7 @@ void setupShaders(const char *vertexShaderFilename, const char *fragmentShaderFi
     postprocessingShaderProgram = new CSCI441::ShaderProgram("shaders/grayscale.v.glsl", "shaders/grayscale.f.glsl");
     uniform_post_proj_loc = postprocessingShaderProgram->getUniformLocation("projectionMtx");
     uniform_post_fbo_loc = postprocessingShaderProgram->getUniformLocation("fbo");
+    uniform_post_modelLocation = postprocessingShaderProgram->getUniformLocation("location");
     attrib_post_vpos_loc = postprocessingShaderProgram->getAttributeLocation("vPos");
     attrib_post_vtex_loc = postprocessingShaderProgram->getAttributeLocation("vTexCoord");
 }
@@ -1454,6 +1455,7 @@ int main(int argc, char *argv[])
         glm::mat4 orthoMatrix = glm::ortho(-1, 1, -1, 1);
         postprocessingShaderProgram->useProgram();
         glUniformMatrix4fv(uniform_post_proj_loc, 1, GL_FALSE, &orthoMatrix[0][0]);
+        glUniform3f(uniform_post_modelLocation, location.x, location.y, location.z);
 
         glBindTexture(GL_TEXTURE_2D, framebufferTextureHandle);
         glBindVertexArray(texturedQuadVAO);
