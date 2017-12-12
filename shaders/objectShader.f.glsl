@@ -8,9 +8,12 @@
 
 // TODO #F3
 in vec3 theColor;
+in vec2 tC;
 
 // TODO #D
 out vec4 fragColorOut;
+
+uniform sampler2D tex;
 
 void main() {
 
@@ -22,5 +25,5 @@ void main() {
 	//fragColorOut = vec4(1,1,1,1);
 	
     // TODO #F4
-	fragColorOut = vec4(theColor, 1);
+	fragColorOut = texture( tex, tC ) * vec4(theColor, 1);
 }

@@ -88,6 +88,7 @@ float incrementor = 0.01f;
 
 float orbitRotation = 0.0f;
 glm::vec3 orbitLocation;
+float wheelRotate = 0.0f;
 
 GLuint shaderProgramHandle = 0;
 GLint mvp_uniform_location = -1;
@@ -161,6 +162,8 @@ GLuint platformTextureHandle;
 GLuint particleHandle;
 GLuint brickTexHandle;
 GLuint orbitTexHandle;
+GLuint suzTexHandle;
+GLuint wheelTexHandle;
 
 vector<ParticleSystem> psystems;
 vector<Spawner> spawners;
@@ -232,7 +235,7 @@ void readFile(const char *filename)
             }
             parameters.clear();
         }
-        else // Enemy Marble Spawner
+        else if (t == 'S') // Enemy Marble Spawner
         {
             ss >> t;
             while (ss >> f)
@@ -257,6 +260,11 @@ void readFile(const char *filename)
             sp.updateStart = glfwGetTime();
             //sp.add();
             spawners.push_back(sp);
+        }
+        else
+        {
+            fprintf(stderr, "[ERROR]: INVALID FILE FORMAT\n");
+            exit(EXIT_FAILURE);
         }
     }
     input.close();
@@ -737,6 +745,8 @@ void setupTextures()
     particleHandle = loadAndRegisterTexture("textures/fire.png");
     brickTexHandle = loadAndRegisterTexture("textures/Stones.jpg");
     orbitTexHandle = loadAndRegisterTexture("textures/sun.png");
+    suzTexHandle = loadAndRegisterTexture("textures/suz.jpg");
+    wheelTexHandle = loadAndRegisterTexture("textures/wheel.jpg");
 }
 
 // setupBuffers() //////////////////////////////////////////////////////////////
@@ -1135,7 +1145,6 @@ void drawSuzanne(glm::mat4 viewMtx, glm::mat4 projMtx)
 
     glm::mat4 normalMtx = glm::transpose(glm::inverse(viewMtx * suzModelMtx));
     glUniformMatrix4fv(objNormMtx, 1, GL_FALSE, &normalMtx[0][0]);
-    suzModelMtx = modelMtx;
 
     glUniform3f(ambient, 0.135f, 0.2225f, 0.1575f);
     glUniform3f(diffuse, 0.54f, 0.89f, 0.63f);
@@ -1156,6 +1165,8 @@ void drawSuzanne(glm::mat4 viewMtx, glm::mat4 projMtx)
     glUniform3f(camUniform, suzPoint.x, suzPoint.y, suzPoint.z);
 
     model->draw(VALloc, NALloc, TALloc, diffuse, specular, shine, ambient);
+
+    suzModelMtx = modelMtx;
 }
 
 void spawnAndUpdate()
@@ -1339,10 +1350,16 @@ void checkDeaths()
         {
             if (glm::distance(location, spawners.at(i).enemies.at(j)->location) < spawners.at(i).enemies.at(j)->radius)
             {
-                MessageBox(NULL, "The enemy got you!", "R.I.P", MB_OK);
+                MessageBox(NULL, "The meteor got you!", "R.I.P", MB_OK);
                 exit(EXIT_SUCCESS);
             }
         }
+    }
+
+    if (location.z > 1000.0f)
+    {
+        MessageBox(NULL, "You did it! You won!", "Congratulations!", MB_OK);
+        exit(EXIT_SUCCESS);
     }
 }
 
@@ -1377,13 +1394,36 @@ void renderScene(glm::mat4 viewMtx, glm::mat4 projMtx)
     glBindTexture(GL_TEXTURE_2D, orbitTexHandle);
     CSCI441::drawSolidSphere(2, 16, 16);
 
-    // Following is for particle system
-    billboardShaderProgram->useProgram();
-
-    drawParticleSystem(viewMtx, projMtx);
-
     // Following draws Suzanne
+    glBindTexture(GL_TEXTURE_2D, suzTexHandle);
     drawSuzanne(viewMtx, projMtx);
+    scaleFactor.y += incrementor;
+    if (scaleFactor.y > 1.5 || scaleFactor.y < 0.5)
+    {
+        incrementor *= -1;
+    }
+
+    // Drawing wheels
+    glBindTexture(GL_TEXTURE_2D, wheelTexHandle);
+    CSCI441::setVertexAttributeLocations(VALloc, objNormMtx, TALloc);
+
+    glm::mat4 wMtx = glm::translate(modelMtx, location + glm::vec3(-.5, -.5, -.5));
+    wMtx = rotate(wMtx, wheelRotate * 3.14f / 180.0f, glm::vec3(1, 0, 0));
+    glm::mat4 wheelMtx = projMtx * viewMtx * wMtx;
+    glUniformMatrix4fv(MVPloc, 1, GL_FALSE, &wheelMtx[0][0]);
+    glUniformMatrix4fv(objModelMtx, 1, GL_FALSE, &wMtx[0][0]);
+    CSCI441::drawSolidSphere(0.5, 16, 16);
+
+    wMtx = glm::translate(modelMtx, location + glm::vec3(.5, -.5, -.5));
+    wMtx = rotate(wMtx, wheelRotate * 3.14f / 180.0f, glm::vec3(1, 0, 0));
+    wheelMtx = projMtx * viewMtx * wMtx;
+    glUniformMatrix4fv(MVPloc, 1, GL_FALSE, &wheelMtx[0][0]);
+    glUniformMatrix4fv(objModelMtx, 1, GL_FALSE, &wMtx[0][0]);
+    CSCI441::drawSolidSphere(0.5, 16, 16);
+
+    wheelRotate += 10.0f;
+    if (wheelRotate > 360.0f)
+        wheelRotate = 0.0f;
 
     // Following Draws Obstacles
     marbleShaderProgram->useProgram();
@@ -1418,6 +1458,11 @@ void renderScene(glm::mat4 viewMtx, glm::mat4 projMtx)
     {
         spawners.at(i).draw(m, viewMtx, uniform_modelMtx_loc, uniform_color_loc, uniform_normalMtx_loc);
     }
+
+    // Following is for particle system
+    billboardShaderProgram->useProgram();
+
+    drawParticleSystem(viewMtx, projMtx);
 }
 
 ///*****************************************************************************
@@ -1510,8 +1555,8 @@ int main(int argc, char *argv[])
         glBindVertexArray(texturedQuadVAO);
         glDrawElements(GL_TRIANGLE_STRIP, 4, GL_UNSIGNED_SHORT, (void *)0);
 
-        //checkEnemiesCollision(); // Checks for enemy running into each other
-        //checkDeaths();           // Checks if player death occurs
+        checkEnemiesCollision(); // Checks for enemy running into each other
+        checkDeaths();           // Checks if player death occurs
 
         glfwSwapBuffers(window); // flush the OpenGL commands and make sure they get rendered!
         glfwPollEvents();        // check for any events and signal to redraw screen

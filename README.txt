@@ -1,35 +1,81 @@
+Final Project - Space Derby
+The Dank Squad
 Khanh Duong - kduong@mymail.mines.edu / Tazuzu
-A7 - Avoid the Park Mascots
+Truyen Van - tvan@mymail.mines.edu / Kat
+Michael Villafuerte - mvillafu@mymail.mines.edu / Fransicko
 
-Added enemy marble mascots to the scene. Mascot will follow Suzanne and turn at an incremented
-angle to simulate arc. Mascot moves slower than Suzanne, allowing the player to outrun them.
-Colliding with them will result in the player's death. Marble enemies can be killed off by
-baiting them off the ledge or having them collide with each other.
+Program is game where player tries to dodge the meteors to reach the star.
+Players must also avoid falling off the edge of the track.
 
-The camera can be adjusted with the left click and zoom with CTRL + left click or scroll wheel.
-Suzanne can be moved using WASD. She is  no longer bounded to the platform, running off will
-result in a death.
+Controls
+	A / D : to move Left and Right to dodge
+	1 : Arcball cam, if players would like to control camera themself
+		Ctrl + Left click to zoom
+		Left click to turn camera
+	2 : Overhead view, straight down view. Some might find it easier to orientate
+	
+User Interaction
+	A / D was chosen to as the control format because it is intuitive for these types
+	of game. Using the full WASD felt awkward, and it was a team decision to simplify
+	the controls. Camera's can still be operated like before.
+	
+Animation
+	Suzanne is the model for the player. Suzanne wiggles as she move. On top of that,
+	Suzanne is fitted with two space wheels that was built using hierarchical modeling
+	which rotates as she moves.
+	
+Texturing
+	We used a lot of textures for this project
+		1) Suzanne has a diamond texture
+		2) Suzanne's wheels are rubber texture
+		3) There is a space skybox
+		4) There is a fire particle system
+		5) The orbiting sun has a sun texture
+		6) Meteors surfaces have a rocky texture
+		7) The road has an asphalt texture
+		
+Lighting
+	The first light we have is from the star at the end of the platform. It shines light towards
+	the players direction.
+	The second light is from the orbiting star around Suzanne. It light is dynamic as it rotates.
+	Both lights affect Suzanne and the meteors.
+	
+Shader Programming
+	1) Pair of Shaders to Light / Texture Player Model + Wheels
+	2) Pair of Shaders to Light / Texture Obstacles (Meteors)
+	3) Pair of Shaders + Geo Shader for bill boarding Particle System
+	4) Pair of Shaders for Skybox
+	5) Pair of Shaders for post processing. This shader lights the entire screen as the player
+		approaches the sun, to simulate the brightness. Getting close to the sun with be
+		glaringly bright, until the entire screen is flooded, indicating the player has reached
+		the end and won.
+		
+To Run:
+	make the file with the included makefile, adjust directory if needed
+		run the fp.exe
+		
+Input Files:
+	systems.csv
+	Systems input file creates the particle systems and the spawners for the meteors
+	Players may choose to add / remove spawners to change the game
+	Note that some setup of the spawners will make the game unbeatable, so for now,
+	just use the suggested Spawners.
+	The particle systems are purely for cosmetic and can be adjusted if you wish.
+	
+	For Particle Systems
+	F, <x>, <y>, <z>, <coneAngle>, <minVelocity>, <maxVelocity>, <minLife>, <maxLife>, <spawnRate>
+	
+	For Meteor Spawners
+	S, <x>, <y>, <z>, <dirX>, <dirY>, <dirZ>, <size>, <spawnRate>
+	
+Responsibilities
+	Khanh: Core functionality/control of the game, particle systems, lighting
+	Michael: Texture, animation
+	Truyen: Post processing shader, skybox, dying conditions
+		
+This assignment took us about 20 hours
+Lab helped alot for this project: 10/10
+Assignment was pretty fun: 8/10
 
-There are colorful walls on the platform. The solid walls are particularly sticky and will stop
-all movements coming towards them for both the player and the enemies. Strategizing with the
-walls will make the map much easier. Objective of the game is to reach the colorful wired
-cube, which will win the game.
-
-To run, make and run the resulting .exe
-	>a7.exe
-The Makefile attached can be used to compile the code. It has been adjusted for home use,
-so be sure to update to your correct paths or set lab value to 0.
-The game also comes with 2 control files:
-	systems.csv places the enemy spawners and particle systems.
-	walls.csv places the colorful wall cube as well as the winning wired cube.
-Feel free to make your own level.
-
-My original plan was to implement the "sliding" effect that was shown on the demo when
-objects run towards the walls. It was too painful to think of an implementation which
-resulted in the sticky walls.
-
-This assignment took 10 hours.
-I wish I was better at OpenGL, there are things I wished I knew how to do but it just takes
-too much time and commitment at this part of the semester.
-The Marble class made this alot easier. 8/10.
-Fun factor: 7/10.
+Bugs: Some issue with lighting, the glare at center of meteors. Not sure if intended
+	

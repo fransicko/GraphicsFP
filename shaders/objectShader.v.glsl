@@ -13,6 +13,7 @@ in vec2 tCoord;
 
 // TODO #F1
 out vec3 theColor;
+out vec2 tC;
 
 // TODO #A
 uniform mat4 mvpMatrix;
@@ -76,4 +77,5 @@ void main() {
 	vec3 iSpecular2 = lightspecular2 * specular * pow(max(0, dot(viewVector, normalVector)), shine2);
 
 	theColor = theColor + iDiffuse2 + iAmbient2 + iSpecular2;
+	tC = tCoord;
 }
