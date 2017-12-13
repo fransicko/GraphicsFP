@@ -46,7 +46,7 @@ void main() {
 	vec3 iSpecular = lightSpecular * color * pow(max(0, dot(viewVector, normalVector)), shine);
 
 	colorAfter = iDiffuse + iAmbient + iSpecular;
-  texCoord = vTextureCoord;
+	texCoord = vTextureCoord;
 
 	vec4 lPos2 = viewMtx * vec4(lightPosition2, 1);
 	vec3 lightVector2 = normalize(vec3(lPos2.x, lPos2.y, lPos2.z) - vec3(vPos.x, vPos.y, vPos.z));

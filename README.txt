@@ -45,10 +45,15 @@ Shader Programming
 	2) Pair of Shaders to Light / Texture Obstacles (Meteors)
 	3) Pair of Shaders + Geo Shader for bill boarding Particle System
 	4) Pair of Shaders for Skybox
-	5) Pair of Shaders for post processing. This shader lights the entire screen as the player
-		approaches the sun, to simulate the brightness. Getting close to the sun with be
-		glaringly bright, until the entire screen is flooded, indicating the player has reached
-		the end and won.
+	5) Pair of Shaders for post processing.
+		a)	Unique Vertex Shader
+			The frame buffer render progressively gets smaller to increase difficulty, and
+			to somewhat simulate distance. The vertex position is being modify based on the distance
+			player is away from the sun.
+		b)	Unique Fragment Shader
+			This shader lights the entire screen as the player approaches the sun, to simulate 
+			the brightness. Getting close to the sun with be glaringly bright, until the 
+			entire screen is flooded, indicating the player has reached the end.
 		
 To Run:
 	make the file with the included makefile, adjust directory if needed
